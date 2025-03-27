@@ -91,8 +91,18 @@ const RegistrationForm = () => {
         break;
     }
 
-    const result = await trigger(fieldsToValidate);
-    return result;
+    return await trigger(fieldsToValidate);
+  };
+
+  // Check if current step is valid (without triggering validation)
+  const isCurrentStepValid = () => {
+    const fieldsForStep = [
+      ["fullName", "email", "password"],
+      ["companyName", "industry", "companySize"],
+      ["termsAccepted"]
+    ][currentStep] as (keyof FormValues)[];
+    
+    return fieldsForStep.every(field => !errors[field]);
   };
 
   // Handle step navigation
@@ -247,7 +257,6 @@ const RegistrationForm = () => {
                         type="button"
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
                         onClick={goToNextStep}
-                        disabled={!isValid}
                       >
                         Next Step
                       </Button>

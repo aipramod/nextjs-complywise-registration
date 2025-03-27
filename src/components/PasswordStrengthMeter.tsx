@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { FaCheck, FaTimes } from "react-icons/fa";
+import { cn } from "@/lib/utils";
 
 interface PasswordStrengthMeterProps {
   password: string;
@@ -13,6 +14,19 @@ interface Criteria {
   label: string;
   met: boolean;
 }
+
+// Create a wrapper for the Progress component to handle the color
+const ColoredProgress = ({ value, color, className }: { value: number; color: string; className?: string }) => {
+  return (
+    <div className={cn("relative h-2 w-full", className)}>
+      <Progress value={value} className="h-full bg-zinc-800" />
+      <div 
+        className={cn("absolute top-0 left-0 h-full transition-all rounded-full", color)}
+        style={{ width: `${value}%` }}
+      />
+    </div>
+  );
+};
 
 const PasswordStrengthMeter = ({ password }: PasswordStrengthMeterProps) => {
   const [strength, setStrength] = useState(0);
@@ -100,11 +114,7 @@ const PasswordStrengthMeter = ({ password }: PasswordStrengthMeterProps) => {
         <span className={`text-xs font-medium ${textColor}`}>{label}</span>
       </div>
       
-      <Progress 
-        value={strength} 
-        className="h-2 bg-zinc-800"
-        indicatorClassName={color}
-      />
+      <ColoredProgress value={strength} color={color} />
 
       <div className="pt-2">
         <p className="text-xs font-medium text-zinc-300 mb-2">Password must have:</p>
