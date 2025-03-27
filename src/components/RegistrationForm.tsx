@@ -19,7 +19,7 @@ import StepIndicator from "./StepIndicator";
 const steps = ["Account Info", "Company Details", "Review"];
 
 // Define validation schemas with Zod
-const schema1 = z.object({
+const formSchema = z.object({
   fullName: z.string().min(1, { message: "Please enter your full name" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z
@@ -28,33 +28,16 @@ const schema1 = z.object({
     .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
     .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
     .regex(/[0-9]/, { message: "Password must contain at least one number" }),
-});
-
-const schema2 = z.object({
   companyName: z.string().min(1, { message: "Please enter your company name" }),
   industry: z.string().min(1, { message: "Please select your industry" }),
   companySize: z.string().min(1, { message: "Please select your company size" }),
-});
-
-const schema3 = z.object({
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms to continue" }),
+  termsAccepted: z.boolean().refine(val => val === true, {
+    message: "You must accept the terms to continue",
   }),
 });
 
-// Create merged schemas for each step
-const getSchemaForStep = (step: number) => {
-  switch (step) {
-    case 0:
-      return schema1;
-    case 1:
-      return schema1.merge(schema2);
-    case 2:
-      return schema1.merge(schema2).merge(schema3);
-    default:
-      return schema1;
-  }
-};
+// Type for form values
+type FormValues = z.infer<typeof formSchema>;
 
 // Animation variants
 const fadeVariants = {
@@ -63,15 +46,13 @@ const fadeVariants = {
   exit: { opacity: 0, x: 20 },
 };
 
-type FormValues = z.infer<ReturnType<typeof getSchemaForStep>>;
-
 const RegistrationForm = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Initialize form with React Hook Form and Zod
+  // Initialize form with React Hook Form
   const methods = useForm<FormValues>({
-    resolver: zodResolver(getSchemaForStep(currentStep)),
+    resolver: zodResolver(formSchema),
     mode: "onChange",
     defaultValues: {
       fullName: "",
@@ -94,9 +75,29 @@ const RegistrationForm = () => {
   // Get password value for strength meter
   const password = watch("password");
 
+  // Validate only fields for the current step
+  const validateCurrentStep = async () => {
+    let fieldsToValidate: (keyof FormValues)[] = [];
+    
+    switch (currentStep) {
+      case 0:
+        fieldsToValidate = ["fullName", "email", "password"];
+        break;
+      case 1:
+        fieldsToValidate = ["companyName", "industry", "companySize"];
+        break;
+      case 2:
+        fieldsToValidate = ["termsAccepted"];
+        break;
+    }
+
+    const result = await trigger(fieldsToValidate);
+    return result;
+  };
+
   // Handle step navigation
   const goToNextStep = async () => {
-    const isStepValid = await trigger();
+    const isStepValid = await validateCurrentStep();
     
     if (isStepValid) {
       setCurrentStep((prev) => prev + 1);
@@ -133,6 +134,11 @@ const RegistrationForm = () => {
     { value: "201-500", label: "201-500 employees" },
     { value: "501+", label: "501+ employees" },
   ];
+
+  // Function to get industry or company size label
+  const getOptionLabel = (options: {value: string, label: string}[], value: string) => {
+    return options.find(option => option.value === value)?.label || "";
+  };
 
   return (
     <div className="w-full max-w-md px-4">
@@ -342,7 +348,6 @@ const RegistrationForm = () => {
                         type="button"
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
                         onClick={goToNextStep}
-                        disabled={!isValid}
                       >
                         Next Step
                       </Button>
@@ -393,17 +398,13 @@ const RegistrationForm = () => {
                         <p className="flex justify-between">
                           <span className="text-zinc-500">Industry:</span>
                           <span className="text-white font-medium">
-                            {industries.find(
-                              (i) => i.value === watch("industry")
-                            )?.label || ""}
+                            {getOptionLabel(industries, watch("industry"))}
                           </span>
                         </p>
                         <p className="flex justify-between">
                           <span className="text-zinc-500">Size:</span>
                           <span className="text-white font-medium">
-                            {companySizes.find(
-                              (s) => s.value === watch("companySize")
-                            )?.label || ""}
+                            {getOptionLabel(companySizes, watch("companySize"))}
                           </span>
                         </p>
                       </div>
@@ -415,27 +416,21 @@ const RegistrationForm = () => {
                       label={
                         <span className="text-zinc-300">
                           I agree to the{" "}
-                          <a
-                            href="/terms"
-                            className="text-indigo-400 hover:text-indigo-300 underline"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              alert("Terms & Conditions would open here");
-                            }}
+                          <button
+                            type="button"
+                            className="text-indigo-400 hover:text-indigo-300 underline bg-transparent border-0 p-0 cursor-pointer"
+                            onClick={() => alert("Terms & Conditions would open here")}
                           >
                             Terms & Conditions
-                          </a>{" "}
+                          </button>{" "}
                           and{" "}
-                          <a
-                            href="/privacy"
-                            className="text-indigo-400 hover:text-indigo-300 underline"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              alert("Privacy Policy would open here");
-                            }}
+                          <button
+                            type="button"
+                            className="text-indigo-400 hover:text-indigo-300 underline bg-transparent border-0 p-0 cursor-pointer"
+                            onClick={() => alert("Privacy Policy would open here")}
                           >
                             Privacy Policy
-                          </a>
+                          </button>
                         </span>
                       }
                     />
@@ -452,7 +447,6 @@ const RegistrationForm = () => {
                       <Button
                         type="submit"
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
-                        disabled={!isValid}
                       >
                         Complete Registration
                       </Button>
